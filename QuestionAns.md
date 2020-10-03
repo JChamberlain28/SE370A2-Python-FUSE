@@ -147,7 +147,9 @@ DEBUG:fuse.log-mixin:<- flush None
 DEBUG:fuse.log-mixin:-> release /newfile (4,)
 DEBUG:fuse.log-mixin:<- release None
 ```
-
+Notes:
+* Changing directory to "mount" folder
+  * Getting attributes of the mount folder (its a file in linux)
 
 Command:   
 ```
@@ -187,6 +189,7 @@ total 16
 -rw-r--r-- 1 jack jack  2 Oct  1 01:59 three
 -rw-r--r-- 1 jack jack  2 Oct  1 01:59 two
 ```
+Note, newfile was saved to source containing "hello world" as mount was a passthrough
 
 IN VSCODE files:   
 mount
