@@ -1,5 +1,5 @@
 # SOFTENG 370 A2 Answers
-Note: This beutifil markdown has to be made .txt for submission >:(
+
 
 ## Question 1
 
@@ -51,9 +51,17 @@ cat > newfile
 ```
  
 Output:   
+* get attributes of mount folder
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521110.04, 'st_ctime': 1601521109.25, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521109.25, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
+```
+* get attributes of newfile from cat command
+  * attempts a getattr before the file is created, hence error
+  * perhaps this is to check if the file exists already, so can append to the end rather than create new file (cat, concatenates text to end of file in this case)
+
+
+```
 DEBUG:fuse.log-mixin:-> getattr /newfile (None,)
 DEBUG:fuse.log-mixin:<- getattr "[Errno 2] No such file or directory: 'source/newfile'"
 DEBUG:fuse:FUSE operation getattr raised a <class 'FileNotFoundError'>, returning errno 2.
@@ -69,12 +77,26 @@ Traceback (most recent call last):
   File "/home/jack/SE370A2/passthrough.py", line 43, in getattr
     st = os.lstat(full_path)
 FileNotFoundError: [Errno 2] No such file or directory: 'source/newfile'
+```
+  * creates newfile to receive input from terminal
+  * gets attribute after "create /newfile" 
+```
 DEBUG:fuse.log-mixin:-> create /newfile (33188,)
 DEBUG:fuse.log-mixin:<- create 4
+```
+* get information on new created file
+```
 DEBUG:fuse.log-mixin:-> getattr /newfile (4,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 33188, 'st_mtime': 1601521307.29, 'st_nlink': 1, 'st_size': 0, 'st_uid': 1000}
+```
+* flushes newfile file to disk?
+```
 DEBUG:fuse.log-mixin:-> flush /newfile (4,)
 DEBUG:fuse.log-mixin:<- flush None
+```
+* gets attributes of mount folder, then opens and reads the folder, then releases the dir??? and  gets attributes of all contained files. WHY THO
+* clearly uses passthrough file system "<generator object Passthrough.readdir at 0x7fa8aad89dd0>"
+```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521307.29, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
 DEBUG:fuse.log-mixin:-> opendir / ()
@@ -130,6 +152,9 @@ Traceback (most recent call last):
   File "/home/jack/SE370A2/fuse.py", line 1124, in getxattr
     raise FuseOSError(ENOTSUP)
 fuse.FuseOSError: [Errno 95] Operation not supported
+```
+* concatinates hello world to newfile file using write operation
+```
 DEBUG:fuse.log-mixin:-> write /newfile (b'hello word\n', 0, 4)
 DEBUG:fuse.log-mixin:<- write 11
 
@@ -141,6 +166,9 @@ Command:
 ```
 
 Output:
+
+* flushes "hello world" text in memory to the new file on disk
+* releases newfile so can be accessed by other processes
 ```
 DEBUG:fuse.log-mixin:-> flush /newfile (4,)
 DEBUG:fuse.log-mixin:<- flush None
@@ -155,7 +183,7 @@ Command:
 ```
 cd ../
 ```
-
+* gets attributes for current working diectory (one we changed to, above mount), therefore not using passthrough file system
 Output:   
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
@@ -167,7 +195,9 @@ Command:
 fusermount -u mount
 ```
 
-Output:   
+Output: 
+* destroys the mount directory???
+* unmounts passthrough file system from "mount folder"  
 ```
 DEBUG:fuse.log-mixin:-> destroy / ()
 DEBUG:fuse.log-mixin:<- destroy None
@@ -202,3 +232,23 @@ source
  - one
  - two
  - three
+
+ ## Question 3
+
+``` __init__``` :
+* creates an empty self.files dictionary to store file attributes. The key is the file path, and the value is a dictionary that stores file attributes.
+* creates a self.data dictionary with the key as the file path and the value as the files data (bytes???).
+* creates a self.fd file descriptor and initialises it to the default '0'. It will be used as a unique identifier for a file.
+* gets current time
+* sets file attributes of the root of the file system. The file system root has a creation, modified and accessed times as now (from when the current time was obtained). The root of the file system has 2 links.
+
+### getattr
+* gets the dictionary of file attributes from the self.files dictionary based on the file path (key). If the file path doesn't exist in self.files, an error is raised.
+
+### readdir
+*
+
+
+
+## Part 3 planning
+* query the contents of the 2 source folders every change made. If the file being worked on is not in source folder, pass to memory.py, else pass to passthrough.py. Could have 2 instances of passthrough.py, one for each directory. Or pasthrough modified to do actions on both source folders same time (e.g. if in folder 1, do in folder 1, if in folder 2 do in folder 2).
