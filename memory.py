@@ -128,6 +128,7 @@ class Memory(LoggingMixIn, Operations):
         return len(data)
 
 
+
 if __name__ == '__main__':
     if len(argv) != 2:
         print('usage: %s <mountpoint>' % argv[0])

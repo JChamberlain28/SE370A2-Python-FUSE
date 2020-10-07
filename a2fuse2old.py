@@ -1,9 +1,6 @@
 
 #!/usr/bin/env python
 
-# Name: Jack Chamberlain
-# UPI (Login): jcha928
-
 from __future__ import print_function, absolute_import, division
 
 import logging
@@ -11,28 +8,16 @@ import logging
 import os
 import sys
 import errno
-from errno import ENOENT
 import re
 
-from collections import defaultdict
-from stat import S_IFDIR, S_IFLNK, S_IFREG
-from sys import argv, exit
-from time import time
-
-
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn, ENOTSUP
+from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 from passthrough import Passthrough
 from memory import Memory
 
-class A2Fuse2(LoggingMixIn, Operations):
+class A2Fuse2old(Memory):
     def __init__(self, root1, root2):
-        self.files = {}
-        self.data = defaultdict(bytes)
-        self.fd = 0
-        now = time()
-        self.files['/'] = dict(st_mode=(S_IFDIR | 0o755), st_ctime=now,
-                               st_mtime=now, st_atime=now, st_nlink=2)
-
+        # Initialise the Memory class that is inherited in this class
+        super().__init__()
         self.passthrough1 = Passthrough(root1)
         self.passthrough2 = Passthrough(root2)
 
@@ -70,10 +55,7 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.getattr(path)
         else:
-            if path not in self.files:
-                raise FuseOSError(ENOENT)
-
-            return self.files[path]
+            return super().getattr(path)
         
 
 
@@ -102,7 +84,7 @@ class A2Fuse2(LoggingMixIn, Operations):
 
 
         if pathMemExists:
-            for z in (['.', '..'] + [x[1:] for x in self.files if x != '/']):
+            for z in super().readdir(path, fh):
                 dirContent.append(z)
 
         return dirContent
@@ -126,18 +108,12 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.open(path, flags)
         else:
-            self.fd += 1
-            return self.fd
+            return super().open(path, flags)
 
 
-    def create(self, path, flags):
-        # modified existing memory implementation to include UID and GID
-        self.files[path] = dict(st_mode=(S_IFREG | flags), 
-            st_nlink=1, st_uid=os.getuid(), st_gid=os.getgid(), st_size=0, st_ctime=time(), 
-            st_mtime=time(), st_atime=time())
-
-        self.fd += 1
-        return self.fd
+    def create(self, path, flags): ## should we check if exists in source folders first??? HELP ##################
+        # Only allows creation of new files in memory file system
+        return super().create(path, flags) ################################ is mode flags???
 
 
     def unlink(self, path):
@@ -150,7 +126,7 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.unlink(path)
         else:
-            self.files.pop(path)
+            return super().unlink(path)
     
 
     def write(self, path, data, offset, fh):
@@ -164,9 +140,7 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.write(path, data, offset, fh)
         else:
-            self.data[path] = self.data[path][:offset] + data
-            self.files[path]['st_size'] = len(self.data[path])
-            return len(data)
+            return super().write(path, data, offset, fh)
 
     def read(self, path, size, offset, fh):
         # get hypothetical path for both source folders
@@ -179,7 +153,7 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.read(path, size, offset, fh)
         else:
-            return self.data[path][offset:offset + size]
+            return super().read(path, size, offset, fh)
 
 
 
@@ -194,9 +168,7 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.chmod(path, mode)
         else:
-            self.files[path]['st_mode'] &= 0o770000
-            self.files[path]['st_mode'] |= mode
-            return 0
+            return super().chmod(path, mode)
 
 
 
@@ -212,129 +184,138 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.chown(path, uid, gid)
         else:
-            self.files[path]['st_uid'] = uid
-            self.files[path]['st_gid'] = gid
+            return super().chown(path, uid, gid)
 
 
     def getxattr(self, path, name, position=0):
-        raise FuseOSError(ENOTSUP)
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(path)
+        fullPathRoot2 = self.passthrough2._full_path(path)
+
+
+        if self.dirCheck(fullPathRoot1):
+            return self.passthrough1.getxattr(path, name, position=0)
+        elif self.dirCheck(fullPathRoot2):
+            return self.passthrough2.getxattr(path, name, position=0)
+        else:
+            return super().getxattr(path, name, position=0)
+        # raise NotImplementedError
 
 
 
-    # def listxattr(self, path):
-    #     # get hypothetical path for both source folders
-    #     fullPathRoot1 = self.passthrough1._full_path(path)
-    #     fullPathRoot2 = self.passthrough2._full_path(path)
+    def listxattr(self, path):
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(path)
+        fullPathRoot2 = self.passthrough2._full_path(path)
         
 
 
-    #     if self.dirCheck(fullPathRoot1):
-    #         return self.passthrough1.listxattr(path)
-    #     elif self.dirCheck(fullPathRoot2):
-    #         return self.passthrough2.listxattr(path)
-    #     else:
-    #         return self.mem.listxattr(path)
-    #     # raise NotImplementedError
+        if self.dirCheck(fullPathRoot1):
+            return self.passthrough1.listxattr(path)
+        elif self.dirCheck(fullPathRoot2):
+            return self.passthrough2.listxattr(path)
+        else:
+            return super().listxattr(path)
+        # raise NotImplementedError
 
     # def mkdir(self, path, mode):
     #     return super().mkdir(path, mode)
-    # FuseOSError(ENOTSUP)
 
 
 
 
 
-    # def readlink(self, path):
-    #     # get hypothetical path for both source folders
-    #     fullPathRoot1 = self.passthrough1._full_path(path)
-    #     fullPathRoot2 = self.passthrough2._full_path(path)
+    def readlink(self, path):
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(path)
+        fullPathRoot2 = self.passthrough2._full_path(path)
         
-    #     pathRoot1Exists = os.path.isdir(fullPathRoot1)
-    #     pathRoot2Exists = os.path.isdir(fullPathRoot2)
+        pathRoot1Exists = os.path.isdir(fullPathRoot1)
+        pathRoot2Exists = os.path.isdir(fullPathRoot2)
 
-    #     if pathRoot1Exists:
-    #         return self.passthrough1.readlink(path)
-    #     elif pathRoot2Exists:
-    #         return self.passthrough2.readlink(path)
-    #     else:
-    #         return self.mem.readlink(path)
+        if pathRoot1Exists:
+            return self.passthrough1.readlink(path)
+        elif pathRoot2Exists:
+            return self.passthrough2.readlink(path)
+        else:
+            return super().readlink(path)
 
-    # def removexattr(self, path, name):
-    #     # get hypothetical path for both source folders
-    #     fullPathRoot1 = self.passthrough1._full_path(path)
-    #     fullPathRoot2 = self.passthrough2._full_path(path)
+    def removexattr(self, path, name):
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(path)
+        fullPathRoot2 = self.passthrough2._full_path(path)
         
-    #     pathRoot1Exists = os.path.isdir(fullPathRoot1)
-    #     pathRoot2Exists = os.path.isdir(fullPathRoot2)
+        pathRoot1Exists = os.path.isdir(fullPathRoot1)
+        pathRoot2Exists = os.path.isdir(fullPathRoot2)
 
-    #     if pathRoot1Exists:
-    #         return self.passthrough1.removexattr(path, name)
-    #     elif pathRoot2Exists:
-    #         return self.passthrough2.removexattr(path, name)
-    #     else:
-    #         return self.mem.removexattr(path, name)
+        if pathRoot1Exists:
+            return self.passthrough1.removexattr(path, name)
+        elif pathRoot2Exists:
+            return self.passthrough2.removexattr(path, name)
+        else:
+            return super().removexattr(path, name)
 
-    # def rename(self, old, new):
-    #     # get hypothetical path for both source folders
-    #     fullPathRoot1 = self.passthrough1._full_path(old)
-    #     fullPathRoot2 = self.passthrough2._full_path(old)
+    def rename(self, old, new):
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(old)
+        fullPathRoot2 = self.passthrough2._full_path(old)
         
-    #     pathRoot1Exists = os.path.isdir(fullPathRoot1)
-    #     pathRoot2Exists = os.path.isdir(fullPathRoot2)
+        pathRoot1Exists = os.path.isdir(fullPathRoot1)
+        pathRoot2Exists = os.path.isdir(fullPathRoot2)
 
-    #     if pathRoot1Exists:
-    #         return self.passthrough1.rename(old, new)
-    #     elif pathRoot2Exists:
-    #         return self.passthrough2.rename(old, new)
-    #     else:
-    #         return self.mem.rename(old, new)
+        if pathRoot1Exists:
+            return self.passthrough1.rename(old, new)
+        elif pathRoot2Exists:
+            return self.passthrough2.rename(old, new)
+        else:
+            return super().rename(old, new)
 
 
-    # def rmdir(self, path):
-    #     # get hypothetical path for both source folders
-    #     fullPathRoot1 = self.passthrough1._full_path(path)
-    #     fullPathRoot2 = self.passthrough2._full_path(path)
+    def rmdir(self, path):
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(path)
+        fullPathRoot2 = self.passthrough2._full_path(path)
         
-    #     pathRoot1Exists = os.path.isdir(fullPathRoot1)
-    #     pathRoot2Exists = os.path.isdir(fullPathRoot2)
+        pathRoot1Exists = os.path.isdir(fullPathRoot1)
+        pathRoot2Exists = os.path.isdir(fullPathRoot2)
 
-    #     if pathRoot1Exists:
-    #         return self.passthrough1.rmdir(path)
-    #     elif pathRoot2Exists:
-    #         return self.passthrough2.rmdir(path)
-    #     else:
-    #         return self.mem.rmdir(path)
+        if pathRoot1Exists:
+            return self.passthrough1.rmdir(path)
+        elif pathRoot2Exists:
+            return self.passthrough2.rmdir(path)
+        else:
+            return super().rmdir(path)
 
-    # def setxattr(self, path, name, value, options, position=0):
-    #     # get hypothetical path for both source folders
-    #     fullPathRoot1 = self.passthrough1._full_path(path)
-    #     fullPathRoot2 = self.passthrough2._full_path(path)
+    def setxattr(self, path, name, value, options, position=0):
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(path)
+        fullPathRoot2 = self.passthrough2._full_path(path)
         
-    #     pathRoot1Exists = os.path.isdir(fullPathRoot1)
-    #     pathRoot2Exists = os.path.isdir(fullPathRoot2)
+        pathRoot1Exists = os.path.isdir(fullPathRoot1)
+        pathRoot2Exists = os.path.isdir(fullPathRoot2)
 
-    #     if pathRoot1Exists:
-    #         return self.passthrough1.setxattr(path, name, value, options, position=0)
-    #     elif pathRoot2Exists:
-    #         return self.passthrough2.setxattr(path, name, value, options, position=0)
-    #     else:
-    #         return self.mem.setxattr(path, name, value, options, position=0)
+        if pathRoot1Exists:
+            return self.passthrough1.setxattr(path, name, value, options, position=0)
+        elif pathRoot2Exists:
+            return self.passthrough2.setxattr(path, name, value, options, position=0)
+        else:
+            return super().setxattr(path, name, value, options, position=0)
 
 
-    # def statfs(self, path):
-    #     # get hypothetical path for both source folders
-    #     fullPathRoot1 = self.passthrough1._full_path(path)
-    #     fullPathRoot2 = self.passthrough2._full_path(path)
+    def statfs(self, path):
+        # get hypothetical path for both source folders
+        fullPathRoot1 = self.passthrough1._full_path(path)
+        fullPathRoot2 = self.passthrough2._full_path(path)
         
-    #     pathRoot1Exists = os.path.isdir(fullPathRoot1)
-    #     pathRoot2Exists = os.path.isdir(fullPathRoot2)
+        pathRoot1Exists = os.path.isdir(fullPathRoot1)
+        pathRoot2Exists = os.path.isdir(fullPathRoot2)
 
-    #     if pathRoot1Exists:
-    #         return self.passthrough1.statfs(path)
-    #     elif pathRoot2Exists:
-    #         return self.passthrough2.statfs(path)
-    #     else:
-    #         return self.mem.statfs(path)
+        if pathRoot1Exists:
+            return self.passthrough1.statfs(path)
+        elif pathRoot2Exists:
+            return self.passthrough2.statfs(path)
+        else:
+            return super().statfs(path)
 
 
     # def symlink(self, target, source):
@@ -345,14 +326,16 @@ class A2Fuse2(LoggingMixIn, Operations):
         # get hypothetical path for both source folders
         fullPathRoot1 = self.passthrough1._full_path(path)
         fullPathRoot2 = self.passthrough2._full_path(path)
+        
+        pathRoot1Exists = os.path.isdir(fullPathRoot1)
+        pathRoot2Exists = os.path.isdir(fullPathRoot2)
 
-        if self.dirCheck(fullPathRoot1):
+        if pathRoot1Exists:
             return self.passthrough1.truncate(path, length)
-        elif self.dirCheck(fullPathRoot2):
+        elif pathRoot2Exists:
             return self.passthrough2.truncate(path, length)
         else:
-            self.data[path] = self.data[path][:length]
-            self.files[path]['st_size'] = length
+            return super().truncate(path, length)
 
 
 
@@ -369,24 +352,7 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif pathRoot2Exists:
             return self.passthrough2.utimens(path)
         else:
-            now = time()
-            atime, mtime = times if times else (now, now)
-            self.files[path]['st_atime'] = atime
-            self.files[path]['st_mtime'] = mtime
-
-
-    def release(self, path, fh):
-        fullPathRoot1 = self.passthrough1._full_path(path)
-        fullPathRoot2 = self.passthrough2._full_path(path)
-
-
-        if self.dirCheck(fullPathRoot1):
-            return self.passthrough1.release(path, fh)
-        elif self.dirCheck(fullPathRoot2):
-            return self.passthrough2.release(path, fh)
-        else:
-            pass
-
+            return super().utimens(path)
 
 
 def main(mountpoint, root1, root2):

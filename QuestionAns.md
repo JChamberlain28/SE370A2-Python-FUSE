@@ -1,4 +1,6 @@
 # SOFTENG 370 A2 Answers
+## Name: Jack Chamberlain
+## UPI (Login): jcha928
 
 
 ## Question 1
@@ -27,6 +29,7 @@ The output for both reading the source folder contents directly and the mounted 
 ## Question 2
 
 ### For each command in terminal two, copy the output from terminal 1 (user space file system logging) and explain each method call.   
+### CHECK COMMANDS MAN PAGES TO ENSURE ACCURATE DESCRIPTIONS
 
 
 ### I THINK SOMETHING IS BROKEN COS OUTPUTS TOO LONG + ERRORS. HELP!
@@ -45,20 +48,28 @@ DEBUG:fuse.log-mixin:<- access None
 ```
 
 Explanation: 
+* getattr / (None,)
+  * Gets the attributes of the "/" root directory
+* access / (1,)
+  * checks if the directory "/" can be accessed
+* CROSSCHECK ABOVE OUTPUT WITH OLIVER - STUFF MISSING OR EXTRA
+
 Command:   
 ```
 cat > newfile
 ```
  
 Output:   
-* get attributes of mount folder
+* getattr / (None,)
+  * Gets the attributes of the "/" root directory
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521110.04, 'st_ctime': 1601521109.25, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521109.25, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
 ```
-* get attributes of newfile from cat command
-  * attempts a getattr before the file is created, hence error
-  * perhaps this is to check if the file exists already, so can append to the end rather than create new file (cat, concatenates text to end of file in this case)
+* getattr /newfile (None,)
+  * get attributes of newfile from cat command
+    * attempts a getattr before the file is created, hence error
+    * perhaps this is to check if the file exists already, so can append to the end rather than create new file (cat, concatenates text to end of file in this case)
 
 
 ```
@@ -78,24 +89,31 @@ Traceback (most recent call last):
     st = os.lstat(full_path)
 FileNotFoundError: [Errno 2] No such file or directory: 'source/newfile'
 ```
-  * creates newfile to receive input from terminal
-  * gets attribute after "create /newfile" 
+* create /newfile (33188,)
+  * creates newfile to receive input from terminal (cat)
+  * the path is 33188 (MEMORY ADDRESS???#############################################################################) 
+  * a file descriptor "4" is returned
 ```
 DEBUG:fuse.log-mixin:-> create /newfile (33188,)
 DEBUG:fuse.log-mixin:<- create 4
 ```
-* get information on new created file
+* getattr /newfile (4,)
+  * get attributes of newfile after its creation
+  * WHAT DOES THE 4 mean ################################################################################################
 ```
 DEBUG:fuse.log-mixin:-> getattr /newfile (4,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 33188, 'st_mtime': 1601521307.29, 'st_nlink': 1, 'st_size': 0, 'st_uid': 1000}
 ```
-* flushes newfile file to disk?
+* flush /newfile (4,)
+  * flushes newfile file to disk
 ```
 DEBUG:fuse.log-mixin:-> flush /newfile (4,)
 DEBUG:fuse.log-mixin:<- flush None
 ```
-* gets attributes of mount folder, then opens and reads the folder, then releases the dir??? and  gets attributes of all contained files. WHY THO
+* gets attributes of mount folder
+* opens dir to get its address in mem, reads address, releases dir mem address
 * clearly uses passthrough file system "<generator object Passthrough.readdir at 0x7fa8aad89dd0>"
+* gets attributes of all files in "/"
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521307.29, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
@@ -243,11 +261,39 @@ source
 * sets file attributes of the root of the file system. The file system root has a creation, modified and accessed times as now (from when the current time was obtained). The root of the file system has 2 links.
 
 ### getattr
-* gets the dictionary of file attributes from the self.files dictionary based on the file path (key). If the file path doesn't exist in self.files, an error is raised.
+* gets the dictionary of file attributes from the self.files dictionary based on the file path (key). If the file path doesn't exist in self.files, an ENOENT FuseOSError is raised.
 
 ### readdir
-*
+* reads the directory specified by the path parameter and returns a list of contained directories / files, excluding the root directory "/"
+* "." and ".." are added to the start of this list (these are the current and previous directory)
+* to get the files contained in the directory, self.files dictionary is used
 
+### open
+* Opens the file specified by the path parameter
+* increments the file descriptor and returns its value
+
+### create
+* This method creates a new file in the location specified by the path parameter
+* This is created in memory
+  * a new dictionary is added to self.files containing the file attributes of the created file. These attributes are discussed below:
+    * the mode parameter is used to specify the file type (st_mode). This is OR-ed with S_IFREG.
+    * The size in bytes (st_size) is set to zero as the file has no data.
+    * st_nlink is set to 1 to indicate only one hard link.
+    * last modification, last status change and last access times are set to the current time.
+* The file descriptor is incremented and the new value of it is returned
+
+### unlink
+* removes the file entry in the self.files dictionary corresponding the the path parameter
+
+### write
+# COME BACK TO THIS
+* Stores the new data
+* Updates the file size attribute to reflect the change in size resulting from the write
+* returns the size of the data variable (number of items in list)
+
+### read
+* gets the file data from self.data using the path parameter
+* only the data in the range of offset to offset + size is returned
 
 
 ## Part 3 planning
