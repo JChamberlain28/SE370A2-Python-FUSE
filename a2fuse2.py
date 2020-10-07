@@ -25,6 +25,9 @@ from passthrough import Passthrough
 from memory import Memory
 
 class A2Fuse2(LoggingMixIn, Operations):
+
+    # Node: when initialising fields and performing operations using the memory file system, code from memory.py has been copied
+
     def __init__(self, root1, root2):
         self.files = {}
         self.data = defaultdict(bytes)
@@ -192,6 +195,7 @@ class A2Fuse2(LoggingMixIn, Operations):
 
 
     def getxattr(self, path, name, position=0):
+        # This method is not supported
         raise FuseOSError(ENOTSUP)
 
 
@@ -231,6 +235,7 @@ class A2Fuse2(LoggingMixIn, Operations):
 
 
     def release(self, path, fh):
+        # get hypothetical path for both source folders
         fullPathRoot1 = self.passthrough1._full_path(path)
         fullPathRoot2 = self.passthrough2._full_path(path)
 
@@ -240,6 +245,7 @@ class A2Fuse2(LoggingMixIn, Operations):
         elif self.dirCheck(fullPathRoot2):
             return self.passthrough2.release(path, fh)
         else:
+            # there is no release method for the memory implementation
             pass
 
 
