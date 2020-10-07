@@ -134,21 +134,6 @@ DEBUG:fuse.log-mixin:-> getattr /two (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601470779.13, 'st_ctime': 1601470763.02, 'st_gid': 1000, 'st_mode': 33188, 'st_mtime': 1601470763.022, 'st_nlink': 1, 'st_size': 2, 'st_uid': 1000}
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521308.12, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521307.29, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
-DEBUG:fuse.log-mixin:-> getattr /.gitignore (None,)
-DEBUG:fuse.log-mixin:<- getattr "[Errno 2] No such file or directory: 'source/.gitignore'"
-DEBUG:fuse:FUSE operation getattr raised a <class 'FileNotFoundError'>, returning errno 2.
-Traceback (most recent call last):
-  File "/home/jack/SE370A2/fuse.py", line 731, in _wrapper
-    return func(*args, **kwargs) or 0
-  File "/home/jack/SE370A2/fuse.py", line 771, in getattr
-    return self.fgetattr(path, buf, None)
-  File "/home/jack/SE370A2/fuse.py", line 1024, in fgetattr
-    attrs = self.operations('getattr', self._decode_optional_path(path), fh)
-  File "/home/jack/SE370A2/fuse.py", line 1240, in __call__
-    ret = getattr(self, op)(path, *args)
-  File "/home/jack/SE370A2/passthrough.py", line 43, in getattr
-    st = os.lstat(full_path)
-FileNotFoundError: [Errno 2] No such file or directory: 'source/.gitignore'
 DEBUG:fuse.log-mixin:-> getattr /newfile (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 33188, 'st_mtime': 1601521307.29, 'st_nlink': 1, 'st_size': 0, 'st_uid': 1000}
 ```
