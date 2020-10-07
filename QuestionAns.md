@@ -5,8 +5,6 @@
 
 ## Question 1
 
-### Explain the output you have just seen in terminal two. What did you see and why was it like that?
-
 ### Output:
 
 ```shell
@@ -28,17 +26,8 @@ The output for both reading the source folder contents directly and the mounted 
 
 ## Question 2
 
-### For each command in terminal two, copy the output from terminal 1 (user space file system logging) and explain each method call.   
-### CHECK COMMANDS MAN PAGES TO ENSURE ACCURATE DESCRIPTIONS
+### cd mount
 
-
-### I THINK SOMETHING IS BROKEN COS OUTPUTS TOO LONG + ERRORS. HELP!
-
-### Output and Explanation:
-Command:   
-```
-cd mount
-```
 Output:
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
@@ -52,27 +41,24 @@ Explanation:
 "cd mount" changes the current working directory to the "mount" folder
 
 * getattr / (None,)
-  * Gets the attributes of the "/" root directory
+  * Gets the attributes of the mount directory (this is "/")
 * access / (1,)
-  * checks if the directory "/" can be accessed by the user (permissions)
+  * checks if the mount directory can be accessed by the user (permissions)
 
 
-Command:   
-```
-cat > newfile
-```
+### cat > newfile
+
  
-Output:   
+Output and Explanation:   
 * getattr / (None,)
-  * Gets the attributes of the "/" root directory
+  * Gets the attributes of the mount directory
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521110.04, 'st_ctime': 1601521109.25, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521109.25, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
 ```
 * getattr /newfile (None,)
-  * get attributes of newfile from cat command
-    * attempts a getattr before the file is created, hence error
-    * perhaps this is to check if the file exists already, so can append to the end rather than create new file (cat, concatenates text to end of file in this case)
+  * attempts to get the attributes of newfile before the file is created, therefore a "FileNotFound" error is thrown
+  * this is done to see if the file already exists or must be created
 
 
 ```
@@ -94,7 +80,7 @@ FileNotFoundError: [Errno 2] No such file or directory: 'source/newfile'
 ```
 * create /newfile (33188,)
   * creates newfile to receive input from terminal (cat)
-  * the path is 33188 (MEMORY ADDRESS???#############################################################################) 
+  * the path is 33188
   * a file descriptor "4" is returned
 ```
 DEBUG:fuse.log-mixin:-> create /newfile (33188,)
@@ -102,21 +88,35 @@ DEBUG:fuse.log-mixin:<- create 4
 ```
 * getattr /newfile (4,)
   * get attributes of newfile after its creation
-  * WHAT DOES THE 4 mean ################################################################################################
+  * passes in the file descriptor "4"
 ```
 DEBUG:fuse.log-mixin:-> getattr /newfile (4,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 33188, 'st_mtime': 1601521307.29, 'st_nlink': 1, 'st_size': 0, 'st_uid': 1000}
 ```
 * flush /newfile (4,)
   * flushes newfile file to disk
+  * passes in the file descriptor "4"
 ```
 DEBUG:fuse.log-mixin:-> flush /newfile (4,)
 DEBUG:fuse.log-mixin:<- flush None
 ```
-* gets attributes of mount folder
-* opens dir to get its address in mem, reads address, releases dir mem address
-* clearly uses passthrough file system "<generator object Passthrough.readdir at 0x7fa8aad89dd0>"
-* gets attributes of all files in "/"
+* getattr / (None,)
+  * get attributes of mount directory
+  * passes in no file descriptor
+* opendir / ()
+  * Opens directory stream and returns a pointer to the stream
+  * Initial stream position is the first entry, the mount directory
+* readdir / (0,)
+  * reads the mount directory using the directory stream pointer from opendir
+  * a dir object is returned ("<generator object Passthrough.readdir at 0x7fa8aad89dd0>")
+  * this dir object is a representation of the next directory in the directory stream
+* releasedir / (0,)
+  * releases and closes the mount directory that has just been read
+* getattr for /one, /three, /two, "/", /newfile
+  * getattr is called for all directories read in from the directory stream
+    * this gets the attributes of all files in the mount folder, and the mount folder
+
+
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521307.29, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
@@ -138,10 +138,7 @@ DEBUG:fuse.log-mixin:-> getattr /newfile (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521307.29, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 33188, 'st_mtime': 1601521307.29, 'st_nlink': 1, 'st_size': 0, 'st_uid': 1000}
 ```
 
-Command:   
-```
-hello world
-```
+### hello world
 
 Output:
 ```
@@ -158,63 +155,61 @@ Traceback (most recent call last):
   File "/home/jack/SE370A2/fuse.py", line 1124, in getxattr
     raise FuseOSError(ENOTSUP)
 fuse.FuseOSError: [Errno 95] Operation not supported
-```
-* concatinates hello world to newfile file using write operation
-```
 DEBUG:fuse.log-mixin:-> write /newfile (b'hello word\n', 0, 4)
 DEBUG:fuse.log-mixin:<- write 11
 
 ```
+Explanation:
+* getxattr not implemented in passthrough.py hence an "Operation not supported" is thrown when calling getxattr /newfile
+* concatenates hello world to newfile file using write operation
+* 11 bytes is returned
 
-Command:   
-```
-^D (CTRL+D)
-```
+### ^D (CTRL+D)
+
 
 Output:
 
-* flushes "hello world" text in memory to the new file on disk
-* releases newfile so can be accessed by other processes
+* flush /newfile (4,)
+  * flushes "hello world" text in file in memory to the new file on disk
+* release /newfile (4,)
+  * releases  and closes newfile so can be accessed by other processes
 ```
 DEBUG:fuse.log-mixin:-> flush /newfile (4,)
 DEBUG:fuse.log-mixin:<- flush None
 DEBUG:fuse.log-mixin:-> release /newfile (4,)
 DEBUG:fuse.log-mixin:<- release None
 ```
-Notes:
-* Changing directory to "mount" folder
-  * Getting attributes of the mount folder (its a file in linux)
 
-Command:   
-```
-cd ../
-```
-* gets attributes for current working diectory (one we changed to, above mount), therefore not using passthrough file system
+
+### cd ../
+
+* getattr / (None,)
+  * get attributes of new working directory
+  * passes in no file descriptor
+
 Output:   
 ```
 DEBUG:fuse.log-mixin:-> getattr / (None,)
 DEBUG:fuse.log-mixin:<- getattr {'st_atime': 1601521308.12, 'st_ctime': 1601521307.29, 'st_gid': 1000, 'st_mode': 16877, 'st_mtime': 1601521307.29, 'st_nlink': 2, 'st_size': 4096, 'st_uid': 1000}
 ```
 
-Command:   
-```
-fusermount -u mount
-```
+### fusermount -u mount
 
 Output: 
-* destroys the mount directory???
 * unmounts passthrough file system from "mount folder"  
+* file system is destroyed
+* destroy / ()
+  * called upon file system destruction 
 ```
 DEBUG:fuse.log-mixin:-> destroy / ()
 DEBUG:fuse.log-mixin:<- destroy None
 ```
 
 
+### Contents of source and mount:   
+Assumption: specific ls commands for checking source and mount directories are not specified in the brief, so assuming only the 
+content of these directories is sufficient for this answer. Therefore no FUSE output is provided.
 
-
-
-
-Contents of source and mount:   
 ```
 jack@DESKTOP-Q6QKAUO:~/SE370A2$ ls -l mount
 total 0
@@ -225,19 +220,9 @@ total 16
 -rw-r--r-- 1 jack jack  2 Oct  1 01:59 three
 -rw-r--r-- 1 jack jack  2 Oct  1 01:59 two
 ```
-Note, newfile was saved to source containing "hello world" as mount was a passthrough
+Note, newfile was saved to source containing "hello world" as mount was a passthrough, therefore the changes in mount were reflected in source.
+Mount is empty as the passthrough file system was destroyed.
 
-IN VSCODE files:   
-mount
- - newfile
- - one (DELETED)
- - two (DELETED)
- - three (DELETED)   
-
-source
- - one
- - two
- - three
 
  ## Question 3
 
@@ -285,4 +270,4 @@ source
 
 
 ## Part 3 planning
-* query the contents of the 2 source folders every change made. If the file being worked on is not in source folder, pass to memory.py, else pass to passthrough.py. Could have 2 instances of passthrough.py, one for each directory. Or pasthrough modified to do actions on both source folders same time (e.g. if in folder 1, do in folder 1, if in folder 2 do in folder 2).
+* query the contents of the 2 source folders every change made. If the file being worked on is not in source folder, pass to memory.py, else pass to passthrough.py. Could have 2 instances of passthrough.py, one for each directory. Or passthrough modified to do actions on both source folders same time (e.g. if in folder 1, do in folder 1, if in folder 2 do in folder 2).
