@@ -48,11 +48,14 @@ DEBUG:fuse.log-mixin:<- access None
 ```
 
 Explanation: 
+
+"cd mount" changes the current working directory to the "mount" folder
+
 * getattr / (None,)
   * Gets the attributes of the "/" root directory
 * access / (1,)
-  * checks if the directory "/" can be accessed
-* CROSSCHECK ABOVE OUTPUT WITH OLIVER - STUFF MISSING OR EXTRA
+  * checks if the directory "/" can be accessed by the user (permissions)
+
 
 Command:   
 ```
