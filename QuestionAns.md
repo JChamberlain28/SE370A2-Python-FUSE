@@ -7,7 +7,7 @@
 
 ### Output:
 
-```shell
+```
 jack@DESKTOP-Q6QKAUO:~/SE370A2$ ls -l source 
 total 12
 -rw-r--r-- 1 jack jack 2 Oct  1 01:59 one
@@ -226,7 +226,7 @@ Mount is empty as the passthrough file system was destroyed.
 
  ## Question 3
 
-``` __init__``` :
+### \_\_init\_\_
 * creates an empty self.files dictionary to store file attributes. The key is the file path, and the value is a dictionary that stores file attributes.
 * creates a self.data dictionary with the key as the file path and the value as the files data (bytes???).
 * creates a self.fd file descriptor and initialises it to the default '0'. It will be used as a unique identifier for a file.
