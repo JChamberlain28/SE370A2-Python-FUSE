@@ -259,15 +259,10 @@ Mount is empty as the passthrough file system was destroyed.
 * removes the file entry in the self.files dictionary corresponding the the path parameter
 
 ### write
-# COME BACK TO THIS
-* Stores the new data
+* Stores the new data in the self.data dictionary
 * Updates the file size attribute to reflect the change in size resulting from the write
 * returns the size of the data variable (number of items in list)
 
 ### read
 * gets the file data from self.data using the path parameter
 * only the data in the range of offset to offset + size is returned
-
-
-## Part 3 planning
-* query the contents of the 2 source folders every change made. If the file being worked on is not in source folder, pass to memory.py, else pass to passthrough.py. Could have 2 instances of passthrough.py, one for each directory. Or passthrough modified to do actions on both source folders same time (e.g. if in folder 1, do in folder 1, if in folder 2 do in folder 2).
