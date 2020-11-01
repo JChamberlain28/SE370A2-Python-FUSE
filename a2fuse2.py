@@ -26,7 +26,7 @@ from memory import Memory
 
 class A2Fuse2(LoggingMixIn, Operations):
 
-    # Node: when initialising fields and performing operations using the memory file system, code from memory.py has been copied
+    # Note: when initialising fields and performing operations using the memory file system, code from memory.py has been copied
 
     def __init__(self, root1, root2):
         self.files = {}
